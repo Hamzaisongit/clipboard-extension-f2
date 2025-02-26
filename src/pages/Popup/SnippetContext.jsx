@@ -1,19 +1,31 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import dexieStore from '../../Dexie/DexieStore';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const SnippetContext = createContext();
 
 export const useSnippets = () => useContext(SnippetContext);
 
 export const SnippetProvider = ({ children }) => {
-    const [activeSymbol, setActiveSymbol] = useState({})
-    const [notes, setNotes] = useState([])
+    const navigate = useNavigate()
+
+    const clickedSymbolPayload = useRef({
+        clickedSymbol: "",
+        exactMatches: [],
+        nearestSymbols: [],
+        url: ""
+    })
+
+    const [userCreds, setUserCreds] = useState({})
+    const [symbolDataSynced, setSymbolDataSynced] = useState(true)
+    const [notificationState, setNotificationState] = useState({})
+    const [loadingScreenState, setLoadingScreenState] = useState({})
+
     const [snippets, setSnippets] = useState([]);
     const [tags, setTags] = useState([]);
     const [isDarkMode, setIsDarkMode] = useState(() => {
         const savedMode = localStorage.getItem('darkMode');
         return savedMode ? JSON.parse(savedMode) : false;
-    });
+    })
 
 
 
@@ -21,10 +33,75 @@ export const SnippetProvider = ({ children }) => {
         const storedSnippets = JSON.parse(localStorage.getItem('snippets') || '[]');
         setSnippets(storedSnippets);
         loadTags();
-        (async () => {
-            const storedNotes = await dexieStore.getItem('notes')
-            setNotes(storedNotes)
-        })()
+
+        chrome.storage.local.get(["userCreds"]).then((val) => {
+            val.userCreds?.sheetId ? setUserCreds(val.userCreds) : setUserCreds({})
+        }
+        )
+
+        if (navigator.onLine) {
+            setSymbolDataSynced('syncing')
+            chrome.runtime.sendMessage({ msg: 'startSyncing' }, (res) => {
+                if (!res || res == 'error') return setSymbolDataSynced(false);
+                res == 'success' ? setSymbolDataSynced(true) : null
+            })
+        }
+
+        chrome.runtime.sendMessage({ msg: 'popupOpened' }, (res) => {
+            if (!res) return;
+            switch (res.msg) {
+                case 'exactMatchFound':
+                    clickedSymbolPayload.current = res.payload
+                    navigate(`/activeNotes/${res.payload.exactMatch.symId}`)
+                    break;
+
+                case 'exactMatchNotFound':
+                    clickedSymbolPayload.current = res.payload
+                    navigate('/symbolConfirmationMenu')
+                    break;
+
+                case 'conflictOccurred':
+                    clickedSymbolPayload.current = res.payload
+                    navigate('/symbolConflictMenu/')
+                    break;
+                case 'openQuickNotes':
+                    navigate(`/activeNotes/${1000000}`)
+                    break;
+                case 'authSetupStarted':
+                    setLoadingScreenState({ show: true })
+                    const authSetupCompletedListner = (message) => {
+                        console.log('msg', message)
+                        if (message.msg != 'authSetupCompleted') return;
+                        if (message.payload.result == 'doneSetup') {
+                            chrome.storage.local.get("userCreds").then(((val) => {
+                                setUserCreds(val.userCreds)
+                                setLoadingScreenState({ show: false })
+                                setNotificationState({ show: true, type: 'success', text: 'Sheet registered successfully' })
+                            }))
+                        } else {
+                            setLoadingScreenState({ show: false })
+                            setNotificationState({ show: true, type: 'failure', text: 'Oops.. something went wrong while registering sheet! Please try again' })
+                        }
+                        chrome.runtime.onMessage.removeListener(authSetupCompletedListner)
+                    }
+                    chrome.runtime.onMessage.addListener(authSetupCompletedListner)
+                    // const onStorageChangeListner = (changes) => {
+                    //     console.log(changes)
+                    //     if (changes.userCreds?.newValue?.sheetId) {
+                    //         setUserCreds({ sheetId: changes.userCreds?.newValue?.sheetId })
+                    //         setLoadingScreenState({ show: false })
+                    //         setNotificationState({ show: true, type: 'success', text: 'Sheet registered successfully' })
+                    //     } else {
+                    //         setLoadingScreenState({ show: false })
+                    //         setNotificationState({ show: true, type: 'failure', text: 'Oops.. something went wrong while registering sheet! Please try again' })
+                    //     }
+                    //     chrome.storage.local.onChanged.removeListener(onStorageChangeListner)
+                    // }
+                    // chrome.storage.local.onChanged.addListener(onStorageChangeListner)
+                    break;
+            }
+
+        })
 
     }, []);
 
@@ -138,7 +215,7 @@ export const SnippetProvider = ({ children }) => {
     }, [isDarkMode]);
 
     return (
-        <SnippetContext.Provider value={{ snippets, addSnippet, updateSnippet, deleteSnippet, tags, addTag, updateTag, deleteTag, loadTags, exportData, importData, isDarkMode, toggleDarkMode, addNote, deleteNote, activeSymbol, setActiveSymbol, notes }}>
+        <SnippetContext.Provider value={{ snippets, addSnippet, updateSnippet, deleteSnippet, tags, addTag, updateTag, deleteTag, loadTags, exportData, importData, isDarkMode, toggleDarkMode, clickedSymbolPayload, userCreds, setUserCreds, symbolDataSynced, setSymbolDataSynced, notificationState, setNotificationState, setLoadingScreenState, loadingScreenState }}>
             {children}
         </SnippetContext.Provider>
     );

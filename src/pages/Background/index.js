@@ -1,99 +1,134 @@
-import dexieStore, { db } from "../../Dexie/DexieStore";
+import { db } from "../../Dexie/DexieStore";
+import { deleteUnsynced, loadUnsynced } from "../../Dexie/utils/sheetSyncHandlers";
 import nearestSymbolFinder from "./nearestSymbolFinder";
+import { getToken, onLaunchWebAuthFlow } from "./utils/auth";
+import { InitialUserSetup } from "./utils/InitialUserSetup";
 
+let exactMatches;
+let nearestSymbols;
+let clickedSymbolPayload;
+let authSetupResult;
 
-console.log('This is the background page.');
-
-// db.symbols.bulkAdd([
-//     { title: 'Cynsies Tech', symbols: ["cyntech", "ctech"] },
-//     { title: 'DomsInd', symbols: ["doms"] },
-//     { title: 'AB real', symbols: ["adireal", "abreal"] },
-//     { title: 'Shiv Textile & Chemicals', symbols: ["shivtx", "shtexchem"] },
-//     { title: 'Kaka industries', symbols: ["kkind", 'kaka'] }
-// ]).then(() => console.log('done'))
-
-// db.notes.bulkPut([
-//     { noteId: 1731582409387, content: "new note", symId: 2, date: 1731582409387, title: 'DomsInd' },
-//     { noteId: 1731582409388, content: "a newwwww note", symId: 2, date: 17315824093, title: 'DomsInd' },
-//     { noteId: 1731582409389, content: "notessss", symId: 3, date: 173158240938, title: 'AB real' },
-// ])
-
+let openPopupFor = {
+    'openSymbolChat': false,
+    'openQuickNotes': false,
+    'authSetupStarted': false
+};
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     switch (message.msg) {
         case 'clickedSymbol':
-            onClickHandler(message.payload).then((res) => {
-                console.log('this time...', res)
-                sendResponse(res)
-            })
-            break;
-        case 'symbolConfirmed':
-            symbolConfirmationHandler(message.payload).then(() => {
-                sendResponse('symbol confirmed..')
+            chrome.tabs.query({ currentWindow: true, active: true }, (tabs) => {
+                clickedSymbolPayload = {
+                    ...message.payload,
+                    url: tabs[0].url
+                }
+                symbolButtonClickHandler(clickedSymbolPayload).then((res) => {
+                    exactMatches = res.exactMatches
+                    nearestSymbols = res.nearestSymbols
+
+                    openPopupFor.openSymbolChat = true;
+                    chrome.action.openPopup();
+                })
             })
             break;
 
-        case 'addNewSymbol':
-            addNewSymbolHandler(message.payload).then(() => {
-                sendResponse('new symbol added')
+        case 'requestedSymbolList':
+            chrome.tabs.query({ active: true, currentWindow: true }, (([tab]) => {
+                chrome.storage.local.get(["blockedSites"]).then((val) => {
+                    if (val.blockedSites?.includes(tab.url.match(/^(?:https?:\/\/)?([^?#]+)/)[1])) return;
+                    db.symbols.toArray((symbols) => {
+                        db.negatives.toArray((negatives) => {
+                            sendResponse({ symbols, negatives, url: tab.url })
+                        })
+                    })
+                })
+            }))
+
+            return true;
+
+        case 'startSyncing':
+            loadUnsynced().then((res1) => {
+                if (!res1 || res1 == 'networkError') {
+                    sendResponse('error')
+                    return;
+                }
+
+                deleteUnsynced().then((res2) => {
+                    if (!res2 || res2 == 'networkError') {
+                        sendResponse('error')
+                        return;
+                    }
+
+                    sendResponse('success')
+                })
+            })
+
+            return true;
+
+        case 'popupOpened':
+            switch (true) {
+                case openPopupFor.openSymbolChat:
+                    exactMatches?.length ? (exactMatches.length == 1 ? sendResponse({ msg: 'exactMatchFound', payload: { exactMatch: exactMatches[0], url: clickedSymbolPayload.url } }) : sendResponse({ msg: 'conflictOccurred', payload: { exactMatches, url: clickedSymbolPayload.url, clickedSymbol: clickedSymbolPayload.clickedSymbol } })) : sendResponse({
+                        msg: 'exactMatchNotFound', payload: {
+                            nearestSymbols: nearestSymbols || [],
+                            clickedSymbol: clickedSymbolPayload.clickedSymbol,
+                            url: clickedSymbolPayload.url
+                        }
+                    })
+
+                    openPopupFor.openSymbolChat = false;
+                    break;
+
+                case openPopupFor.openQuickNotes:
+                    sendResponse({
+                        msg: 'openQuickNotes'
+                    })
+
+                    openPopupFor.openQuickNotes = false;
+                    break;
+
+                case openPopupFor.authSetupStarted:
+                    sendResponse({
+                        msg: 'authSetupStarted'
+                    })
+                    openPopupFor.authSetupStarted = false;
+                    break;
+
+                default:
+                    sendResponse(null)
+            }
+
+            return true;
+
+        case 'openQuickNotes':
+            openPopupFor.openQuickNotes = true;
+            chrome.action.openPopup()
+            break;
+
+        case 'initialAuthSetup':
+            onLaunchWebAuthFlow().then((authCode) => {
+                openPopupFor.authSetupStarted = true;
+                chrome.action.openPopup()
+
+                InitialUserSetup(message.registerExisting, {
+                    sheetId: message.payload?.sheetId,
+                    authCode
+                }).then((res) => {
+
+                    chrome.runtime.sendMessage({ msg: 'authSetupCompleted', payload: { result: res } })
+
+                })
             })
     }
-    return true
 })
 
 //it will check for whether exact match of clicked symbol is found or not and accordinglu returns response object
-async function onClickHandler(clickedSymbol) {
-    const nearestSymbols = await nearestSymbolFinder(clickedSymbol) || []
+async function symbolButtonClickHandler(payload) {
 
-    if (nearestSymbols.length == 0) {
-        return {
-            msg: 'symbolMatchNotFound',
-            payload: nearestSymbols
-        }
-    }
+    const nearestSymbols = await nearestSymbolFinder(payload) || []
 
-    if (nearestSymbols[0].nearbyIndex == 0) {
-        await activeSymbolSetter(nearestSymbols[0])
-        return {
-            msg: 'symbolMatchFound'
-        };
-    }
+    const exactMatches = nearestSymbols.filter((symbol) => symbol.levenshteinDistance == 0)
 
-    return {
-        msg: 'symbolMatchNotFound',
-        payload: nearestSymbols
-    }
+    return { nearestSymbols, exactMatches }
 }
-
-async function activeSymbolSetter(symbol) {
-    console.log('it now... ', symbol)
-    // return chrome.storage.local.set({ 'activeSymbol': { ...symbol } }, () => {
-    //     return setTimeout(() => {
-    //         chrome.action.openPopup()
-    //         console.log('did it')
-    //     }, 200)
-    // })
-    chrome.action.openPopup()
-    return setTimeout(() => {
-        chrome.runtime.sendMessage({
-            msg: 'setActiveSymbol',
-            payload: symbol
-        })
-    }, 200)
-
-}
-
-async function symbolConfirmationHandler(symbolData) {
-
-    await dexieStore.setItem('updateSymbol', symbolData)
-
-    console.log('updated...', symbolData.confirmedSymbol)
-    activeSymbolSetter(symbolData.confirmedSymbol)
-
-}
-
-async function addNewSymbolHandler(symbolData) {
-    const addedSymbol = await dexieStore.setItem('addNewSymbol', symbolData)
-    await activeSymbolSetter(addedSymbol)
-}
-

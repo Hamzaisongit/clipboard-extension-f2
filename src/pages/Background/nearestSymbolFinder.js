@@ -1,43 +1,42 @@
-import dexieStore from "../../Dexie/DexieStore"
+import { db, dexieStore } from "../../Dexie/DexieStore"
 import { closest, distance } from 'fastest-levenshtein';
 
 //code to find the nearest matching symbol
-//the function goes on to comapare teh clcicked symbol with all the archived symbols in database and...
+//the function goes on to comapare teh clicked symbol with all the archived symbols in database and...
 //..returns an array of 5 closest matching symbol object where each object contains all the previous symbol properties and adiitionally
+// two new properties for each symbol - levenshteinDistances and bias                                                                         
+export default async function nearestSymbolFinder(payload) {
 
+    const formattedClickedSymbol = payload.clickedSymbol.toLocaleLowerCase().replace(/[ .]/g, "")
+    const activeNegatives = await db.negatives.where({ 'urls': payload.url?.match(/^(?:https?:\/\/)?([^?#]+)/) ? payload.url?.match(/^(?:https?:\/\/)?([^?#]+)/)[1] : 'garbage' }).toArray()
 
-// two new properties for each symbol - nearByIndex and bias  
-export default async function nearestSymbolFinder(clickedSymbol) {
+    const symbolData = await dexieStore.getSymbols() || '[]'
 
-    const symbolData = await dexieStore.getItem('symbols') || '[]'
-    console.log(symbolData)
+    if (symbolData.length == 0) return;
 
-    if (symbolData.length == 0) return
+    const levenshteinDistancesTable = symbolData.map((i) => {
 
-    const nearbyIndexesTable = symbolData.map((i) => {
+        const arrayOfPositiveVariants = i.symbols.filter((variant) => !activeNegatives.find((negative) => negative.symId == i.symId && negative.symbol == variant.toLocaleLowerCase().replace(/[ .]/g, "")))
 
-        const arrayOfSimilarSymbols = i.symbols
-        console.log(arrayOfSimilarSymbols)
-        let bias
+        //in dexie, every symbol entry has a field called 'symbols',
+        //this field is an array which stores all the possible name variants for that symbol
+        //the following function takes an array of variants as an arguments and returns the closest variant
 
-        const nearbyIndex = distance(clickedSymbol, (() => {
-            const closestWord = closest(clickedSymbol, arrayOfSimilarSymbols)
-            bias = Math.abs(closestWord.length - clickedSymbol.length) // ideally bias will have to be 0..
-            return closestWord
-        })())
+        const closestWord = closest(formattedClickedSymbol, arrayOfPositiveVariants.map(e => e.toLocaleLowerCase().replace(/[ .]/g, ""))) || ""
+        let bias = Math.abs(closestWord.length - formattedClickedSymbol.length) // ideally bias will have to be 0..
+        //following line will get the 'levenshtine distance' or for the closest variant found
+        const levenshteinDistance = distance(formattedClickedSymbol, closestWord)
 
         return {
             ...i,
-            nearbyIndex,
+            levenshteinDistance,
             bias
         }
     })
 
 
-    nearbyIndexesTable.sort((a = {}, b = {}) => a.nearbyIndex - b.nearbyIndex)
+    levenshteinDistancesTable.sort((a = {}, b = {}) => a.levenshteinDistance - b.levenshteinDistance)
 
-
-
-    console.log(nearbyIndexesTable[0], nearbyIndexesTable[1], nearbyIndexesTable[2], nearbyIndexesTable[3], nearbyIndexesTable[4])
-    return [nearbyIndexesTable[0], nearbyIndexesTable[1], nearbyIndexesTable[2], nearbyIndexesTable[3], nearbyIndexesTable[4]]
+    return levenshteinDistancesTable
+    //return [levenshteinDistancesTable[0], levenshteinDistancesTable[1], levenshteinDistancesTable[2], levenshteinDistancesTable[3], levenshteinDistancesTable[4]]
 }

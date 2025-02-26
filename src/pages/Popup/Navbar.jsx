@@ -1,12 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useSnippets } from './SnippetContext';
 
-const Navbar = ({ isDarkMode }) => {
+const Navbar = () => {
+  const { isDarkMode } = useSnippets()
   const location = useLocation();
 
-  return location.pathname === '/activeNotes' ? null : (
+  //displays Navbar only current page is not ActiveNotes
+  return location.pathname.includes('/activeNotes/') || location.pathname.includes('/noteSettings/') ? null : (
     <div className={`flex justify-around p-3 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} border-t`}>
       <Link to="/" className={`flex flex-col items-center ${location.pathname === '/' ? 'text-blue-500' : isDarkMode ? 'text-gray-300' : 'text-gray-400'}`}>
+        <span className="text-xl">📝+</span>
+        <span className="text-xs">Notes</span>
+      </Link>
+      <Link to="/snippets" className={`flex flex-col items-center ${location.pathname === '/snippets' ? 'text-blue-500' : isDarkMode ? 'text-gray-300' : 'text-gray-400'}`}>
         <span className="text-xl">📚</span>
         <span className="text-xs">Snippets</span>
       </Link>

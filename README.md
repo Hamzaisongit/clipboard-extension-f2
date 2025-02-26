@@ -1,18 +1,9 @@
+
 <img src="./src/assets/img/icon-128.png" width="25">
 
 # Finfriend - notes feature demo 
 
 Originally forked from : https://github.com/teziapp/clipboard-extension
-
-**Working Features as of now :**
-- All previous features
-- A new notes icon appears on navbar below
-- A page for listing all notes date-wise and a page to show notes taken for a particular symbol
-- A confirmation dialogue appears as you click on plus button for a new symbol and you can either..
-  -  to update existing symbol variant or 
-  - add new ones into database
-- Exact match finding for already stored symbol 
-
 
 \
 \
@@ -49,4 +40,3 @@ After running the above command, a build folder should be generated in project's
 To test the extension on a pre-included dummy HTML page with stock symbols listed on it.. 
 
 Simply go to http://lcoalhost:3000 & turn on the extension from toolbar
-

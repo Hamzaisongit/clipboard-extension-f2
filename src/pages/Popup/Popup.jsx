@@ -8,37 +8,55 @@ import SnippetList from './SnippetList';
 import TagManager from './TagManager';
 import NoteList from './NoteList';
 import ActiveNotes from './ActiveNotes';
+import SymbolConfirmationMenu from './utils/SymbolConfirmationMenu';
+import { NoteSettings } from './NoteSettings';
+import { SymbolConflictMenu } from './utils/SymbolConflictMenu';
+import { Notification } from './utils/Notification';
+import { Loading } from './utils/Loading';
 
 const Popup = () => {
+
+  localStorage.getItem("UserInstructions") ? null :
+    localStorage.setItem("UserInstructions", JSON.stringify({
+      "symbolMatchNotFound": true
+    }))
+
   return (
-    <SnippetProvider>
 
-      <PopupContent />
 
-    </SnippetProvider>
+    <PopupContent />
+
+
   );
 };
 
 const PopupContent = () => {
-  const { isDarkMode } = useSnippets();
+
 
 
   return (
     <Router>
-      <div className={`w-[300px] h-[500px] ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white'} shadow-md flex flex-col`}>
-        <div className="flex-grow overflow-y-auto">
-          <Routes>
-            <Route path="/" element={<SnippetList />} />
-            <Route path="/add" element={<AddOrEditSnippet />} />
-            <Route path="/edit/:snippetId" element={<AddOrEditSnippet />} />
-            <Route path="/tags" element={<TagManager />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path='/noteList' element={<NoteList></NoteList>} />
-            <Route path='/activeNotes' element={<ActiveNotes></ActiveNotes>} />
-          </Routes>
+      <SnippetProvider>
+        <div className={`w-[300px] h-[500px] shadow-md flex flex-col`}>
+          <div className="flex-grow overflow-y-hidden">
+            <Routes>
+              <Route path="/" element={<NoteList></NoteList>} />
+              <Route path='/symbolConfirmationMenu' element={<SymbolConfirmationMenu />}></Route>
+              <Route path="/add" element={<AddOrEditSnippet />} />
+              <Route path="/edit/:snippetId" element={<AddOrEditSnippet />} />
+              <Route path="/tags" element={<TagManager />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path='/snippets' element={<SnippetList />} />
+              <Route path='/activeNotes/:activeSymbolId' element={<ActiveNotes></ActiveNotes>} />
+              <Route path='/noteSettings/:activeSymbolId' element={<NoteSettings />}></Route>
+              <Route path='/symbolConflictMenu' element={<SymbolConflictMenu></SymbolConflictMenu>}></Route>
+            </Routes>
+          </div>
+          <Notification></Notification>
+          <Loading></Loading>
+          <Navbar />
         </div>
-        <Navbar isDarkMode={isDarkMode} />
-      </div>
+      </SnippetProvider>
     </Router>
   );
 };

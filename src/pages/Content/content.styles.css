@@ -1,128 +1,70 @@
-.hide-btn {
+.hide {
     display: none;
 }
 
-/* General styles for the dialog */
-/* General styles for the dialog */
-.custom-dialog[open] {
-    border-radius: 12px;
-    padding: 0;
-    width: 400px;
-    max-width: 90vw;
-    max-height: 70vh;
-    background-color: #ffffff;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-    animation: fadeIn 0.3s ease-in-out;
-    backdrop-filter: blur(5px);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.custom-dialog[close] {
-    display: none
-}
-
-/* Symbols container with scroll */
-.symbols-container {
-    padding: 20px;
-    overflow-y: auto;
-    flex: 1;
-    scrollbar-width: thin;
-    scrollbar-color: #888 #f0f0f0;
-}
-
-.symbols-container::-webkit-scrollbar {
-    width: 8px;
-}
-
-.symbols-container::-webkit-scrollbar-thumb {
-    background-color: #888;
+#note-down {
+    position: fixed;
+    color: #ffffff;
+    font-weight: bold;
+    padding: 2px 8px;
     border-radius: 4px;
-}
-
-.symbol-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.symbol-item:last-child {
-    border-bottom: none;
-}
-
-.symbol-text {
-    color: #333;
-    font-size: 1rem;
-    margin-right: 10px;
-}
-
-.select-button {
-    background-color: #3b82f6;
-    color: #ffffff;
-    border: none;
-    padding: 6px 10px;
-    border-radius: 6px;
+    border: 1px solid rgb(5, 161, 5);
     cursor: pointer;
-    font-size: 0.9rem;
-    transition: background-color 0.2s ease;
+    background: rgb(5, 161, 5);
+    z-index: 1000;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(5px);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    transition: all 0.25s ease-in-out;
+
+    &:hover {
+        background: rgb(0, 126, 0);
+    }
 }
 
-.select-button:hover {
-    background-color: #2563eb;
-}
+/* #indicator {
+    position: fixed;
+    z-index: 1000;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(5px);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+} */
+.levenshtineMatches {}
 
-/* Footer bar at the bottom with input and button */
-.footer-bar {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 10px;
-    background-color: #f3f4f6;
-    border-top: 1px solid #e2e8f0;
-}
-
-.footer-bar p {
-    text-align: center;
-    font-size: 15px;
-}
-
-.input-field {
-    flex: 1;
-    padding: 8px;
-    margin-right: 10px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    outline: none;
-    font-size: 0.9rem;
-}
-
-.add-button {
-    background-color: #10b981;
-    color: #ffffff;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 6px;
+#flagButton {
+    user-select: none;
+    position: fixed;
+    z-index: 1000;
     cursor: pointer;
-    font-size: 0.9rem;
-    transition: background-color 0.2s ease;
+    background: none;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.2em;
+    padding: 4px 8px;
+    animation: popIn 0.3s ease-out;
+
 }
 
-.add-button:hover {
-    background-color: #059669;
-}
-
-/* Animation for the dialog fade-in effect */
-@keyframes fadeIn {
-    from {
+@keyframes popIn {
+    0% {
+        transform: scale(0.5);
         opacity: 0;
-        transform: translateY(-10px);
     }
 
-    to {
+    80% {
+        transform: scale(1.1);
         opacity: 1;
-        transform: translateY(0);
     }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+#flagButton:hover {
+    transform: scale(1.2);
 }
