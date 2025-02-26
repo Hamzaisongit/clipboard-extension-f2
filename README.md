@@ -3,9 +3,10 @@
 
 # Note-it 
 
+*works across all the chromium based browsers (chrome,edge,brave..)
+
 Originally forked from : https://github.com/teziapp/clipboard-extension
 
-\
 \
 **To run the extension on your local**.. go to folder where you want to save the project and follow steps as given below
 
@@ -36,8 +37,8 @@ npm run build
 
 After running either of the above commands, a build folder should be generated in project's root directory.
 
-### Step-4 : Unpacking the extension on chrome
-1. Open chrome and got to extension settings
+### Step-4 : Unpacking the extension on browser
+1. Open your browser and got to extension settings
 2. Turn on developer mode (upper right)
 3. Click on load unpacked (upper left) 
 4. Browse to the build folder we generated in project root and select it
